@@ -1,103 +1,376 @@
-/* J.A.R.V.I.S MOBILE EDITION
-   Gemini chat + Google Search grounding + memory + five supplied tools.
-   Security note: a key used in browser JavaScript is visible to site visitors.
-   Use a server-side proxy before publishing a real API key publicly.
-*/
-"use strict";
-
-const CONFIG={model:"gemini-3.8-flash",apiVersion:"v1beta",memoryKey:"jarvis_memory",apiKeyStorage:"jarvis_key",maxHistory:12};
-const $=id=>document.getElementById(id);
-const chat=$("chat"),input=$("msg"),sendBtn=$("send"),micBtn=$("mic-btn"),camBtn=$("cam-btn"),clearBtn=$("clear-btn"),imgInput=$("img-input"),searchInput=$("web-search-input"),searchBtn=$("web-search-btn"),searchStatus=$("web-search-status");
-let API_KEY="",MEMORY=[],isThinking=false,recognition=null,lastGroundingSources=[];
-
-function setStatus(id,text,ok=true){const n=$(id);if(n){n.textContent="• "+text;n.style.color=ok?"#00ff9d":"#ff8585";}}
-function addMessage(text,type="ai"){const n=document.createElement("div");n.className="msg "+type;n.textContent=text;chat.appendChild(n);chat.scrollTop=chat.scrollHeight;return n;}
-function saveMemory(){try{localStorage.setItem(CONFIG.memoryKey,JSON.stringify(MEMORY.slice(-50)));}catch{addMessage("Browser storage is full; this conversation may not be saved.","error");}}
-function loadMemory(){try{const v=JSON.parse(localStorage.getItem(CONFIG.memoryKey)||"[]");MEMORY=Array.isArray(v)?v.filter(x=>x&&(x.role==="user"||x.role==="model")&&typeof x.text==="string"):[];}catch{MEMORY=[];}MEMORY.forEach(x=>addMessage((x.role==="user"?"YOU: ":"J.A.R.V.I.S: ")+x.text,x.role==="user"?"user":"ai"));}
-function requestApiKey(){API_KEY=(localStorage.getItem(CONFIG.apiKeyStorage)||"").trim();if(!API_KEY){API_KEY=(prompt("Enter your Gemini API key. Do not use an unrestricted key on a public website:")||"").trim();if(API_KEY)localStorage.setItem(CONFIG.apiKeyStorage,API_KEY);}setStatus("ai-status",API_KEY?"KEY ENTERED":"API KEY MISSING",!!API_KEY);}
-function speak(text){if(!("speechSynthesis"in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text).slice(0,3500));u.lang="en-IN";u.rate=1;u.pitch=.95;speechSynthesis.speak(u);}
-function appendSources(container,sources){if(!sources.length)return;const box=document.createElement("div");box.className="web-sources";const h=document.createElement("strong");h.textContent="WEB SOURCES";box.appendChild(h);sources.forEach(s=>{const a=document.createElement("a");a.href=s.uri;a.target="_blank";a.rel="noopener noreferrer";a.textContent=s.title||s.uri;box.appendChild(a);});container.appendChild(box);}
-
-async function callGemini(promptText,options={}){
- if(!API_KEY)throw Error("Gemini API key is missing. Reload and enter it.");
- const history=MEMORY.slice(-CONFIG.maxHistory).map(x=>({role:x.role,parts:[{text:x.text}]}));
- const parts=[{text:promptText}];
- if(options.imageData&&options.mimeType)parts.push({inlineData:{mimeType:options.mimeType,data:options.imageData}});
- history.push({role:"user",parts});
- const body={systemInstruction:{parts:[{text:"You are J.A.R.V.I.S., a helpful personal AI assistant. Be accurate, clear and concise. Do not claim actions you did not perform."}]},contents:history,generationConfig:{temperature:0.7,maxOutputTokens:2048}};
- if(options.webSearch)body.tools=[{google_search:{}}];
- const url=`https://generativelanguage.googleapis.com/${CONFIG.apiVersion}/models/${CONFIG.model}:generateContent?key=${encodeURIComponent(API_KEY)}`;
- const response=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
- const data=await response.json().catch(()=>({}));
- if(!response.ok)throw Error(data.error?.message||`Gemini request failed (${response.status}).`);
- const candidate=data.candidates?.[0],answer=candidate?.content?.parts?.map(p=>p.text||"").join("").trim();
- if(!answer)throw Error("Gemini returned no text. Check model access, quota and safety feedback.");
- lastGroundingSources=(candidate.groundingMetadata?.groundingChunks||[]).map(x=>x.web).filter(x=>x?.uri).filter((x,i,a)=>a.findIndex(y=>y.uri===x.uri)===i);
- return answer;
+// ===== 1. API KEY & MODELS =====
+let API_KEY = localStorage.getItem('jarvis_key');
+if (!API_KEY) {
+  API_KEY = prompt('Enter your Gemini API Key:');
+  if (API_KEY) localStorage.setItem('jarvis_key', API_KEY.trim());
 }
 
-/* The five tools supplied in your original code: time, weather, timer,
-   English-to-Telugu translation and YouTube search. */
-async function handleTools(text){
- const t=text.toLowerCase();
- if(/\btime\b/.test(t)||t.includes("సమయం"))return "The time is "+new Date().toLocaleTimeString()+", Boss.";
- if(t.includes("weather")||t.includes("వాతావరణం")){
-  if(!navigator.geolocation)return "Location is not supported by this browser.";
-  return new Promise(resolve=>navigator.geolocation.getCurrentPosition(async p=>{try{const url=`https://api.open-meteo.com/v1/forecast?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&current_weather=true`;const r=await fetch(url);if(!r.ok)throw Error();const d=await r.json();const w=d.current_weather;if(!w)throw Error();resolve(`It is ${w.temperature}°C now. Wind speed is ${w.windspeed} km/h, Boss.`);}catch{resolve("Weather service is temporarily unavailable.");}},()=>resolve("Location permission is needed for local weather."),{timeout:10000}));
- }
- const m=t.match(/(\d+)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?)/);
- if((t.includes("timer")||t.includes("టైమర్"))&&m){const amount=Number(m[1]),unit=m[2],factor=/^(hours?|hrs?)/.test(unit)?3600000:/^(seconds?|secs?)/.test(unit)?1000:60000;if(amount<1||amount>1440)return "Please choose a timer from 1 to 1440 units.";setTimeout(()=>{speak(`Timer completed. ${amount} ${unit}.`);addMessage(`J.A.R.V.I.S: Timer completed (${amount} ${unit}).`,"system");},amount*factor);return `Timer set for ${amount} ${unit}, Boss.`;}
- if(t.startsWith("translate")){const q=text.replace(/^translate\s*(this\s*)?/i,"").trim();if(!q)return "Please provide text to translate.";try{const r=await fetch("https://api.mymemory.translated.net/get?q="+encodeURIComponent(q)+"&langpair=en|te");if(!r.ok)throw Error();const d=await r.json();return "In Telugu: "+(d.responseData?.translatedText||"No translation returned.");}catch{return "Translation service error.";}}
- if(t.startsWith("play ")||t.startsWith("youtube ")){const q=text.replace(/^play\s+/i,"").replace(/^youtube\s*(search\s*)?/i,"").trim();if(q){window.open("https://www.youtube.com/results?search_query="+encodeURIComponent(q),"_blank","noopener,noreferrer");return `Opening YouTube search for ${q}, Boss.`;}}
- return null;
+const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+
+// ===== 2. MEMORY & DOM ELEMENTS =====
+let MEMORY = [];
+try {
+  const storedMemory = JSON.parse(localStorage.getItem('jarvis_memory') || '[]');
+  if (Array.isArray(storedMemory)) {
+    MEMORY = storedMemory.filter(
+      m =>
+        m &&
+        (m.role === 'user' || m.role === 'model') &&
+        typeof m.text === 'string' &&
+        !(m.role === 'model' && /^(?:Your strong password:|ಇದಿಗೋ strong password:)/i.test(m.text))
+    );
+    if (MEMORY.length !== storedMemory.length) {
+      localStorage.setItem('jarvis_memory', JSON.stringify(MEMORY));
+    }
+  } else {
+    localStorage.removeItem('jarvis_memory');
+  }
+} catch (e) {
+  localStorage.removeItem('jarvis_memory');
 }
 
-async function askJarvis(message,webSearch=false,vision=null){
- const question=String(message||"").trim();if(!question||isThinking)return;
- isThinking=true;addMessage("YOU: "+(vision?"[IMAGE] ":"")+question,"user");input.value="";
- const loading=addMessage(webSearch?"J.A.R.V.I.S: Searching the web...":vision?"J.A.R.V.I.S: Analyzing image...":"J.A.R.V.I.S: Thinking...","ai");
- sendBtn.disabled=true;searchBtn.disabled=true;$("system-state").textContent=webSearch?"WEB SEARCH ACTIVE":"PROCESSING";
- try{
-  let reply=null;lastGroundingSources=[];
-  if(!webSearch&&!vision)reply=await handleTools(question);
-  if(reply===null)reply=await callGemini(question,{webSearch,imageData:vision?.data,mimeType:vision?.mime});
-  MEMORY.push({role:"user",text:(vision?"[Image] ":"")+question},{role:"model",text:reply});MEMORY=MEMORY.slice(-50);saveMemory();
-  loading.textContent="J.A.R.V.I.S: "+reply;if(webSearch)appendSources(loading,lastGroundingSources);
-  if(webSearch)searchStatus.textContent=lastGroundingSources.length?`${lastGroundingSources.length} source(s) found. Answer displayed in chat.`:"Answer displayed in chat; no source links returned.";
-  speak(reply);$("system-state").textContent="SYSTEM READY";
- }catch(e){console.error(e);loading.className="msg error";loading.textContent="J.A.R.V.I.S ERROR: "+e.message;$("system-state").textContent="CHECK CONNECTION";if(webSearch)searchStatus.textContent="SEARCH FAILED. CHECK API KEY, MODEL ACCESS OR QUOTA.";}
- finally{isThinking=false;sendBtn.disabled=false;searchBtn.disabled=false;}
+function saveMemory() {
+  localStorage.setItem('jarvis_memory', JSON.stringify(MEMORY));
 }
 
-sendBtn.addEventListener("click",()=>askJarvis(input.value));
-input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();askJarvis(input.value);}});
-function performWebSearch(){const q=searchInput.value.trim();if(!q){searchStatus.textContent="ENTER A SEARCH QUESTION";return;}searchStatus.textContent="SEARCHING. RESULTS WILL APPEAR IN CHAT.";askJarvis(q,true);}
-searchBtn.addEventListener("click",performWebSearch);
-searchInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();performWebSearch();}});
+const chat = document.getElementById('chat');
+const input = document.getElementById('msg');
+const sendBtn = document.getElementById('send-btn'); // Optional if you have a send button
+const micBtn = document.getElementById('mic-btn');
+const clearBtn = document.getElementById('clear-btn');
+const camBtn = document.getElementById('cam-btn');
+const imgInput = document.getElementById('img-input');
 
-camBtn.addEventListener("click",()=>imgInput.click());
-imgInput.addEventListener("change",()=>{
- const file=imgInput.files?.[0];if(!file)return;
- if(!file.type.startsWith("image/")){addMessage("Please select an image file.","error");imgInput.value="";return;}
- if(file.size>5*1024*1024){addMessage("Choose an image smaller than 5 MB.","error");imgInput.value="";return;}
- const reader=new FileReader();
- reader.onload=()=>{const data=String(reader.result).split(",")[1],q=input.value.trim()||"Describe this image.";askJarvis(q,false,{data,mime:file.type});imgInput.value="";};
- reader.onerror=()=>{addMessage("Could not read that image.","error");imgInput.value="";};
- reader.readAsDataURL(file);
+function add(text, sender = 'ai') {
+  if (!chat) {
+    console.log(`[${sender}]`, text);
+    return;
+  }
+  const div = document.createElement('div');
+  div.className = `message ${sender}`;
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+MEMORY.forEach(m =>
+  add((m.role === 'user' ? 'YOU: ' : 'J.A.R.V.I.S: ') + m.text, m.role === 'user' ? 'user' : 'ai')
+);
+
+// ===== 3. NETWORK & TOOLS (THE HANDS) =====
+async function fetchToolJson(url, options = {}, timeoutMs = 10000) {
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    const response = await fetch(url, {
+      ...options,
+      ...(controller ? { signal: controller.signal } : {})
+    });
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      throw new Error(`HTTP ${response.status}: ${errBody.slice(0, 120)}`);
+    }
+    return await response.json();
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+async function handleTools(text) {
+  // 1. Reset API Key command
+  if (/^\s*(?:reset|change|clear)\s+(?:api\s+)?key\s*$/i.test(text)) {
+    localStorage.removeItem('jarvis_key');
+    API_KEY = prompt('Enter your new Gemini API Key:');
+    if (API_KEY) {
+      API_KEY = API_KEY.trim();
+      localStorage.setItem('jarvis_key', API_KEY);
+      return 'API Key updated, Boss.';
+    }
+    return 'API Key cleared.';
+  }
+
+  // 2. Quick site openers
+  if (/^\s*(?:please\s+)?(?:open\s+youtube|youtube\s+open|youtube)(?:\s+please)?[.!?]*\s*$/i.test(text)) {
+    window.open('https://youtube.com', '_blank', 'noopener,noreferrer');
+    return 'Opening YouTube, Boss.';
+  }
+  if (/^\s*(?:please\s+)?(?:open\s+google|google\s+open|google)(?:\s+please)?[.!?]*\s*$/i.test(text)) {
+    window.open('https://google.com', '_blank', 'noopener,noreferrer');
+    return 'Opening Google, Boss.';
+  }
+
+  // 3. Open direct URL
+  const urlCommand = text.match(/^\s*(?:open|visit|go to)\s+(https?:\/\/\S+)\s*$/i);
+  if (urlCommand) {
+    try {
+      const destination = new URL(urlCommand[1]);
+      if (destination.protocol !== 'https:' && destination.protocol !== 'http:') {
+        return 'Only http and https links can be opened.';
+      }
+      window.open(destination.href, '_blank', 'noopener,noreferrer');
+      return 'Opening ' + destination.hostname + ', Boss.';
+    } catch (e) {
+      return 'That link does not look valid.';
+    }
+  }
+
+  // 4. Google Search
+  if (/^\s*(?:google\s+search|search\s+(?:on\s+)?google)(?:\s+for)?\s*$/i.test(text)) {
+    return 'Tell me what to search for on Google.';
+  }
+  const googleSearch = text.match(/^\s*(?:google\s+search|search\s+(?:on\s+)?google)(?:\s+for)?\s+(.+?)\s*$/i);
+  if (googleSearch) {
+    const query = googleSearch[1].trim();
+    window.open('https://www.google.com/search?q=' + encodeURIComponent(query), '_blank', 'noopener,noreferrer');
+    return 'Searching Google for ' + query + ', Boss.';
+  }
+
+  // 5. YouTube Search
+  const playMatch = text.match(/^\s*play\s+(.+?)\s*$/i);
+  const youtubeMatch = text.match(/^\s*youtube(?:\s+search)?(?:\s+for)?\s+(.+?)\s*$/i);
+  const searchYoutubeMatch = text.match(/^\s*search\s+(?:on\s+)?youtube(?:\s+for)?\s+(.+?)\s*$/i);
+  const videoQuery = (playMatch || youtubeMatch || searchYoutubeMatch)?.[1]?.trim();
+  if (videoQuery) {
+    window.open('https://www.youtube.com/results?search_query=' + encodeURIComponent(videoQuery), '_blank', 'noopener,noreferrer');
+    return 'Searching YouTube for ' + videoQuery + ', Boss.';
+  }
+
+  // 6. Wikipedia Lookup
+  const searchMatch = text.match(/^\s*(?:search|look up)\s+(?:for\s+)?(.+?)\s*$/i);
+  if (searchMatch) {
+    const query = searchMatch[1].trim();
+    try {
+      const url =
+        'https://en.wikipedia.org/w/api.php?action=query&list=search&srlimit=1&srsearch=' +
+        encodeURIComponent(query) +
+        '&format=json&origin=*';
+      const data = await fetchToolJson(url);
+      const result = data?.query?.search?.[0];
+      if (!result) return 'I could not find that, Boss.';
+      const snippet = String(result.snippet || '')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&quot;/g, '"')
+        .replace(/&#0?39;/g, "'")
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+      return 'Wikipedia summary: ' + result.title + (snippet ? '. ' + snippet : '');
+    } catch (e) {
+      return 'Search error, Boss.';
+    }
+  }
+
+  // 7. Time
+  if (/^\s*(?:what(?:'s| is)\s+the\s+)?(?:current\s+)?time\b/i.test(text)) {
+    return 'Current time: ' + new Date().toLocaleTimeString();
+  }
+
+  // 8. Weather (Fixed: returns proper JSON instead of plain text)
+  if (/^\s*(?:what(?:'s| is)\s+the\s+)?weather\b/i.test(text)) {
+    try {
+      const data = await fetchToolJson('https://wttr.in/?format=j1');
+      const current = data?.current_condition?.[0];
+      const area = data?.nearest_area?.[0]?.areaName?.[0]?.value || 'Your location';
+      if (!current) return 'Weather data unavailable.';
+      return `Weather in ${area}: ${current.temp_C}°C, ${current.weatherDesc?.[0]?.value || ''}`;
+    } catch (e) {
+      return 'Unable to fetch weather right now.';
+    }
+  }
+
+  // 9. Crypto / Bitcoin
+  if (/^\s*(?:bitcoin|btc|crypto)(?:\s+price)?\s*$/i.test(text)) {
+    try {
+      const data = await fetchToolJson('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+      return `Bitcoin price: $${data?.bitcoin?.usd ?? 'Unavailable'}`;
+    } catch (e) {
+      return 'Unable to fetch Bitcoin price.';
+    }
+  }
+
+  // 10. News
+  if (/^\s*(?:latest\s+|top\s+)?news\s*$/i.test(text)) {
+    try {
+      const data = await fetchToolJson('https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=3');
+      const headlines = (data?.hits || []).map(h => h.title).filter(Boolean).join(' | ');
+      return headlines ? 'Top headlines: ' + headlines : 'No news found.';
+    } catch (e) {
+      return 'Unable to fetch news.';
+    }
+  }
+
+  return null;
+}
+
+// ===== 3.5. AGENT MODE ENGINE =====
+const AGENT_TOOLS = Object.freeze({
+  time: async () => handleTools('current time'),
+  weather: async () => handleTools('weather'),
+  news: async () => handleTools('news'),
+  crypto: async () => handleTools('bitcoin')
 });
 
-const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(SpeechRecognition){
- recognition=new SpeechRecognition();recognition.lang="en-IN";recognition.continuous=false;recognition.interimResults=false;setStatus("voice-status","AVAILABLE");
- recognition.onstart=()=>{$("system-state").textContent="LISTENING";};
- recognition.onresult=e=>{const transcript=e.results?.[0]?.[0]?.transcript||"";input.value=transcript;askJarvis(transcript);};
- recognition.onerror=e=>addMessage("VOICE ERROR: "+e.error,"error");
- recognition.onend=()=>{micBtn.disabled=false;$("system-state").textContent="SYSTEM READY";};
-}else setStatus("voice-status","NOT SUPPORTED IN THIS BROWSER",false);
-micBtn.addEventListener("click",()=>{if(!recognition){addMessage("Voice recognition is not supported in this browser.","system");return;}try{micBtn.disabled=true;recognition.start();}catch(e){micBtn.disabled=false;addMessage("Microphone could not start: "+e.message,"error");}});
+const AGENT_TOOL_NAMES = Object.freeze({
+  time: 'time',
+  weather: 'weather',
+  news: 'news',
+  crypto: 'crypto'
+});
 
-clearBtn.addEventListener("click",()=>{if(!confirm("Clear all saved J.A.R.V.I.S. chat memory on this browser?"))return;MEMORY=[];localStorage.removeItem(CONFIG.memoryKey);chat.replaceChildren();if("speechSynthesis"in window)speechSynthesis.cancel();addMessage("J.A.R.V.I.S: Chat memory cleared.","system");});
+function isAgentModeRequest(text = '') {
+  const value = String(text || '');
+  if (/\b(?:agent(?:\s+mode)?|run\s+(?:the\s+)?agent|use\s+(?:the\s+)?agent)\b/i.test(value)) return true;
+  if (/\b(?:briefing|research|analy[sz]e|analysis)\b/i.test(value)) return true;
+  return /\bplan\b/i.test(value) && /\b(?:time|weather|news|crypto|bitcoin|btc)\b/i.test(value);
+}
 
-requestApiKey();loadMemory();setStatus("memory-status","ACTIVE");setStatus("web-status","READY");
-addMessage("J.A.R.V.I.S: Systems initialized. How can I help you, Boss?","system");
-console.log("J.A.R.V.I.S initialized.");
+function parseAgentToolPlan(responseText) {
+  const text = String(responseText || '')
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
+  const start = text.indexOf('[');
+  const end = text.lastIndexOf(']');
+  if (start < 0 || end < start) throw new Error('Agent plan format incorrect.');
+  const parsed = JSON.parse(text.slice(start, end + 1));
+  const allowed = new Set(Object.keys(AGENT_TOOLS));
+  return [
+    ...new Set(
+      parsed
+        .filter(item => typeof item === 'string')
+        .map(item => item.trim().toLowerCase())
+        .filter(item => allowed.has(item))
+    )
+  ];
+}
+
+function fallbackAgentToolPlan(goal = '') {
+  const g = String(goal).toLowerCase();
+  const tools = [];
+  if (/\btime\b/.test(g)) tools.push('time');
+  if (/\bweather\b/.test(g)) tools.push('weather');
+  if (/\bnews\b/.test(g)) tools.push('news');
+  if (/\b(?:crypto|bitcoin|btc)\b/.test(g)) tools.push('crypto');
+  return tools.length ? tools : ['time', 'weather', 'news'];
+}
+
+async function runAgent(goal) {
+  add('J.A.R.V.I.S: Agent mode active.', 'ai');
+  add('J.A.R.V.I.S: Goal analyze chesthunna...', 'ai');
+
+  const planPrompt =
+    'Return ONLY a JSON array of relevant tool names from ["time","weather","news","crypto"]. Goal: ' +
+    JSON.stringify(String(goal));
+
+  let toolsToRun;
+  try {
+    toolsToRun = parseAgentToolPlan(await callGeminiRaw(planPrompt));
+    if (!toolsToRun.length) toolsToRun = fallbackAgentToolPlan(goal);
+  } catch (error) {
+    toolsToRun = fallbackAgentToolPlan(goal);
+  }
+
+  const results = {};
+  for (let i = 0; i < toolsToRun.length; i++) {
+    const tool = toolsToRun[i];
+    add(`J.A.R.V.I.S: [${i + 1}/${toolsToRun.length}] ${AGENT_TOOL_NAMES[tool]} tool run chesthunna...`, 'ai');
+    try {
+      results[tool] = await AGENT_TOOLS[tool]();
+    } catch (e) {
+      results[tool] = 'Tool error';
+    }
+  }
+
+  add('J.A.R.V.I.S: Results combine chesthunna...', 'ai');
+  const summaryPrompt = `Goal: ${JSON.stringify(String(goal))}. Tool results: ${JSON.stringify(
+    results
+  )}. Give a concise Telugu/English summary.`;
+  return await callGemini(summaryPrompt);
+}
+
+// ===== 4. GEMINI BRAIN =====
+async function requestGemini(contents) {
+  if (!API_KEY) throw new Error('Gemini API key is missing. Type "reset key" to enter one.');
+  let lastError;
+
+  for (const model of MODELS) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(API_KEY)}`;
+      const data = await fetchToolJson(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents })
+      });
+      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (reply) return reply;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error('All Gemini models failed.');
+}
+
+async function callGeminiRaw(promptText) {
+  return requestGemini([{ role: 'user', parts: [{ text: promptText }] }]);
+}
+
+async function callGemini(p) {
+  const contents = MEMORY.slice(-12).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+  contents.push({ role: 'user', parts: [{ text: p }] });
+  return requestGemini(contents);
+}
+
+// ===== 5. MAIN MESSAGE ROUTER & UI LISTENERS =====
+async function processUserMessage(rawText) {
+  const text = String(rawText || '').trim();
+  if (!text) return;
+
+  add('YOU: ' + text, 'user');
+  MEMORY.push({ role: 'user', text });
+  saveMemory();
+
+  try {
+    let reply;
+    if (isAgentModeRequest(text)) {
+      reply = await runAgent(text);
+    } else {
+      const toolReply = await handleTools(text);
+      reply = toolReply !== null ? toolReply : await callGemini(text);
+    }
+
+    add('J.A.R.V.I.S: ' + reply, 'ai');
+    MEMORY.push({ role: 'model', text: reply });
+    saveMemory();
+  } catch (err) {
+    console.error(err);
+    add('J.A.R.V.I.S Error: ' + (err.message || 'Something went wrong.'), 'ai');
+  }
+}
+
+if (input) {
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const val = input.value;
+      input.value = '';
+      processUserMessage(val);
+    }
+  });
+}
+
+if (sendBtn && input) {
+  sendBtn.addEventListener('click', () => {
+    const val = input.value;
+    input.value = '';
+    processUserMessage(val);
+  });
+}
+
+if (clearBtn) {
+  clearBtn.addEventListener('click', () => {
+    MEMORY = [];
+    localStorage.removeItem('jarvis_memory');
+    if (chat) chat.innerHTML = '';
+    add('J.A.R.V.I.S: Memory cleared, Boss.', 'ai');
+  });
+}
