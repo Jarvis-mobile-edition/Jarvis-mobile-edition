@@ -1,50 +1,526 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+/* ==========================================
+   J.A.R.V.I.S MOBILE EDITION
+   FUTURISTIC CYBERPUNK HUD DESIGN
+   ========================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800&display=swap');
+
+/* ===== 1. GLOBAL SETTINGS ===== */
 
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Orbitron', sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Orbitron', sans-serif;
+}
+
+html {
+    scroll-behavior: smooth;
 }
 
 body {
-  background: #000;
-  color: #0ff;
-  padding: 20px;
-  overflow-x: hidden;
+    background: #000;
+    color: #00ffff;
+    padding: 20px;
+    min-height: 100vh;
+    overflow-x: hidden;
 }
 
+/* Background glow */
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(circle at 50% 30%, #003b4a55, transparent 45%),
+        radial-gradient(circle at 50% 90%, #001c2b55, transparent 50%);
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* ===== 2. HEADER ===== */
+
 header {
-  text-align: center;
+    text-align: center;
+    margin-bottom: 15px;
 }
 
 header h1 {
-  letter-spacing: 6px;
-  text-shadow: 0 0 12px #0ff;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: 6px;
+    color: #00ffff;
+    text-shadow:
+        0 0 5px #00ffff,
+        0 0 15px #00ffff,
+        0 0 30px #0088ff;
 }
 
 header p {
-  font-size: 10px;
-  letter-spacing: 4px;
-  opacity: .6;
+    font-size: 10px;
+    letter-spacing: 4px;
+    opacity: 0.7;
+    margin-top: 8px;
 }
 
+/* ===== 3. ARC REACTOR ===== */
+
 .core {
-  position: relative;
-  width: 160px;
-  height: 160px;
-  margin: 25px auto;
+    position: relative;
+    width: 180px;
+    height: 180px;
+    margin: 35px auto 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .ring {
-  position: absolute;
-  border: 2px solid #0ff;
-  border-radius: 50%;
-  box-shadow: 0 0 15px #0ff;
+    position: absolute;
+    border: 2px solid #00ffff;
+    border-radius: 50%;
+    box-shadow:
+        0 0 10px #00ffff,
+        inset 0 0 10px #00ffff;
 }
 
 .r1 {
-  inset: 0;
-  border-top-color: transparent;
-  animation: spin 3s linear infinite;
+    inset: 0;
+    border-top-color: transparent;
+    border-bottom-color: transparent;
+    animation: spin 3s linear infinite;
 }
+
+.r2 {
+    inset: 15px;
+    border-left-color: transparent;
+    border-right-color: transparent;
+    animation: spinReverse 4s linear infinite;
+}
+
+.center {
+    width: 65px;
+    height: 65px;
+    background: radial-gradient(
+        circle,
+        #ffffff 0%,
+        #00ffff 30%,
+        #0088ff 65%,
+        #001a33 100%
+    );
+    border-radius: 50%;
+    box-shadow:
+        0 0 15px #00ffff,
+        0 0 35px #00ffff,
+        0 0 60px #0088ff;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes spinReverse {
+    from {
+        transform: rotate(360deg);
+    }
+    to {
+        transform: rotate(0deg);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(0.9);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
+}
+
+/* ===== 4. SYSTEM TEXT ===== */
+
+.core-text {
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 5px;
+    margin: 20px 0 30px;
+    color: #00ffcc;
+    text-shadow: 0 0 10px #00ffff;
+    animation: blink 2s infinite;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* ===== 5. SYSTEM DIAGNOSTICS ===== */
+
+.status {
+    max-width: 500px;
+    margin: 20px auto;
+    padding: 18px;
+    border: 1px solid #00ffff66;
+    border-radius: 10px;
+    background: #00101699;
+    box-shadow: 0 0 15px #00ffff22;
+}
+
+.status h2 {
+    text-align: center;
+    font-size: 14px;
+    letter-spacing: 3px;
+    margin-bottom: 18px;
+    color: #00ffff;
+}
+
+.row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid #00ffff22;
+    font-size: 10px;
+}
+
+.row:last-child {
+    border-bottom: none;
+}
+
+.row span {
+    color: #a5faff;
+}
+
+.row b {
+    font-size: 9px;
+}
+
+.on {
+    color: #00ff88;
+    text-shadow: 0 0 8px #00ff88;
+}
+
+/* ===== 6. CHAT WINDOW ===== */
+
+.chat {
+    width: 100%;
+    max-width: 650px;
+    height: 300px;
+    margin: 25px auto;
+    padding: 15px;
+    overflow-y: auto;
+    border: 1px solid #00ffff;
+    border-radius: 10px;
+    background: #020b10;
+    box-shadow:
+        0 0 15px #00ffff22,
+        inset 0 0 15px #00ffff11;
+    scroll-behavior: smooth;
+}
+
+.msg {
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 7px;
+    font-size: 11px;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.msg.user {
+    color: #ffffff;
+    background: #003c50;
+    border-left: 3px solid #00ffff;
+}
+
+.msg.ai {
+    color: #00ffcc;
+    background: #001b20;
+    border-left: 3px solid #00ff88;
+}
+
+.msg.system {
+    color: #ffcc55;
+    background: #211900;
+    border-left: 3px solid #ffcc55;
+}
+
+/* Chat scrollbar */
+
+.chat::-webkit-scrollbar {
+    width: 5px;
+}
+
+.chat::-webkit-scrollbar-thumb {
+    background: #00ffff;
+    border-radius: 10px;
+}
+
+/* ===== 7. INTERNET SEARCH ===== */
+
+.web-search {
+    width: 100%;
+    max-width: 600px;
+    margin: 25px auto;
+    padding: 18px;
+    border: 1px solid #00ffff;
+    border-radius: 12px;
+    background: #001016;
+    box-shadow: 0 0 15px #00ffff33;
+}
+
+.web-search h2 {
+    color: #00ffff;
+    text-align: center;
+    font-size: 14px;
+    letter-spacing: 3px;
+    margin-bottom: 18px;
+    text-shadow: 0 0 10px #00ffff;
+}
+
+.search-box {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+
+.search-box input {
+    flex: 1;
+    min-width: 0;
+    padding: 13px;
+    background: #000;
+    color: #fff;
+    border: 1px solid #00ffff;
+    border-radius: 6px;
+    outline: none;
+    font-size: 11px;
+}
+
+.search-box input:focus {
+    box-shadow: 0 0 12px #00ffff88;
+}
+
+.search-box button {
+    padding: 12px 15px;
+    background: #00ffff;
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 10px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.search-box button:hover {
+    background: #fff;
+    box-shadow: 0 0 15px #00ffff;
+}
+
+#web-search-status {
+    text-align: center;
+    margin-top: 13px;
+    color: #00ffcc;
+    font-size: 9px;
+    letter-spacing: 1px;
+}
+
+/* ===== 8. INPUT AREA ===== */
+
+.input-area {
+    width: 100%;
+    max-width: 650px;
+    margin: 25px auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+#msg {
+    width: 100%;
+    flex: 1 1 100%;
+    padding: 15px;
+    background: #020b10;
+    color: #fff;
+    border: 1px solid #00ffff;
+    border-radius: 8px;
+    outline: none;
+    font-size: 11px;
+}
+
+#msg:focus {
+    box-shadow: 0 0 12px #00ffff77;
+}
+
+#msg::placeholder,
+.search-box input::placeholder {
+    color: #70aeb5;
+}
+
+/* ===== 9. BUTTONS ===== */
+
+.input-area button {
+    flex: 1;
+    min-width: 65px;
+    padding: 12px 8px;
+    background: #001e25;
+    color: #00ffff;
+    border: 1px solid #00ffff;
+    border-radius: 7px;
+    font-size: 10px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.input-area button:hover {
+    background: #00ffff;
+    color: #000;
+    box-shadow: 0 0 15px #00ffff;
+}
+
+.input-area button:active {
+    transform: scale(0.96);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Clear button */
+
+#clear-btn {
+    color: #ff5555;
+    border-color: #ff5555;
+}
+
+#clear-btn:hover {
+    background: #ff5555;
+    color: #000;
+    box-shadow: 0 0 12px #ff5555;
+}
+
+/* ===== 10. MOBILE RESPONSIVE ===== */
+
+@media (max-width: 600px) {
+
+    body {
+        padding: 15px;
+    }
+
+    header h1 {
+        font-size: 25px;
+        letter-spacing: 5px;
+    }
+
+    header p {
+        font-size: 9px;
+    }
+
+    .core {
+        width: 155px;
+        height: 155px;
+    }
+
+    .center {
+        width: 55px;
+        height: 55px;
+    }
+
+    .status {
+        padding: 13px;
+    }
+
+    .row {
+        font-size: 9px;
+    }
+
+    .row b {
+        font-size: 8px;
+    }
+
+    .chat {
+        height: 280px;
+        padding: 10px;
+    }
+
+    .msg {
+        font-size: 10px;
+    }
+
+    .web-search {
+        padding: 13px;
+    }
+
+    .search-box button {
+        padding: 10px;
+    }
+
+    .input-area {
+        gap: 7px;
+    }
+
+    .input-area button {
+        padding: 12px 5px;
+        font-size: 9px;
+    }
+}
+
+/* ===== 11. SMALL MOBILE ===== */
+
+@media (max-width: 360px) {
+
+    body {
+        padding: 10px;
+    }
+
+    header h1 {
+        font-size: 21px;
+    }
+
+    .row {
+        font-size: 8px;
+    }
+
+    .input-area button {
+        min-width: 55px;
+        font-size: 8px;
+    }
+
+    .search-box input {
+        font-size: 9px;
+    }
+}
+
+/* ===== 12. ACCESSIBILITY ===== */
+
+button:focus-visible,
+input:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ===== END OF J.A.R.V.I.S CSS ===== */
