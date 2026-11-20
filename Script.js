@@ -5,10 +5,9 @@ if (!API_KEY) {
   if (API_KEY) localStorage.setItem('jarvis_key', API_KEY.trim());
 }
 
-// Updated to valid Gemini API model IDs
 const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
-// ===== 2. MEMORY & UI HELPERS =====
+// ===== 2. MEMORY & DOM ELEMENTS =====
 let MEMORY = [];
 try {
   const storedMemory = JSON.parse(localStorage.getItem('jarvis_memory') || '[]');
@@ -36,12 +35,12 @@ function saveMemory() {
 
 const chat = document.getElementById('chat');
 const input = document.getElementById('msg');
+const sendBtn = document.getElementById('send-btn'); // Optional if you have a send button
 const micBtn = document.getElementById('mic-btn');
 const clearBtn = document.getElementById('clear-btn');
 const camBtn = document.getElementById('cam-btn');
 const imgInput = document.getElementById('img-input');
 
-// Fallback UI logger in case add() wasn't defined elsewhere
 function add(text, sender = 'ai') {
   if (!chat) {
     console.log(`[${sender}]`, text);
@@ -58,7 +57,7 @@ MEMORY.forEach(m =>
   add((m.role === 'user' ? 'YOU: ' : 'J.A.R.V.I.S: ') + m.text, m.role === 'user' ? 'user' : 'ai')
 );
 
-// ===== 3. TOOLS (THE HANDS) =====
+// ===== 3. NETWORK & TOOLS (THE HANDS) =====
 async function fetchToolJson(url, options = {}, timeoutMs = 10000) {
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
   const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
@@ -68,7 +67,8 @@ async function fetchToolJson(url, options = {}, timeoutMs = 10000) {
       ...(controller ? { signal: controller.signal } : {})
     });
     if (!response.ok) {
-      throw new Error(`HTTP error ${response.status}`);
+      const errBody = await response.text().catch(() => '');
+      throw new Error(`HTTP ${response.status}: ${errBody.slice(0, 120)}`);
     }
     return await response.json();
   } finally {
@@ -77,7 +77,19 @@ async function fetchToolJson(url, options = {}, timeoutMs = 10000) {
 }
 
 async function handleTools(text) {
-  // Open YouTube / Google
+  // 1. Reset API Key command
+  if (/^\s*(?:reset|change|clear)\s+(?:api\s+)?key\s*$/i.test(text)) {
+    localStorage.removeItem('jarvis_key');
+    API_KEY = prompt('Enter your new Gemini API Key:');
+    if (API_KEY) {
+      API_KEY = API_KEY.trim();
+      localStorage.setItem('jarvis_key', API_KEY);
+      return 'API Key updated, Boss.';
+    }
+    return 'API Key cleared.';
+  }
+
+  // 2. Quick site openers
   if (/^\s*(?:please\s+)?(?:open\s+youtube|youtube\s+open|youtube)(?:\s+please)?[.!?]*\s*$/i.test(text)) {
     window.open('https://youtube.com', '_blank', 'noopener,noreferrer');
     return 'Opening YouTube, Boss.';
@@ -87,7 +99,7 @@ async function handleTools(text) {
     return 'Opening Google, Boss.';
   }
 
-  // Open direct URL
+  // 3. Open direct URL
   const urlCommand = text.match(/^\s*(?:open|visit|go to)\s+(https?:\/\/\S+)\s*$/i);
   if (urlCommand) {
     try {
@@ -102,19 +114,18 @@ async function handleTools(text) {
     }
   }
 
-  // Google Search
+  // 4. Google Search
   if (/^\s*(?:google\s+search|search\s+(?:on\s+)?google)(?:\s+for)?\s*$/i.test(text)) {
     return 'Tell me what to search for on Google.';
   }
   const googleSearch = text.match(/^\s*(?:google\s+search|search\s+(?:on\s+)?google)(?:\s+for)?\s+(.+?)\s*$/i);
   if (googleSearch) {
     const query = googleSearch[1].trim();
-    if (!query) return 'Tell me what to search for on Google.';
     window.open('https://www.google.com/search?q=' + encodeURIComponent(query), '_blank', 'noopener,noreferrer');
     return 'Searching Google for ' + query + ', Boss.';
   }
 
-  // YouTube Search
+  // 5. YouTube Search
   const playMatch = text.match(/^\s*play\s+(.+?)\s*$/i);
   const youtubeMatch = text.match(/^\s*youtube(?:\s+search)?(?:\s+for)?\s+(.+?)\s*$/i);
   const searchYoutubeMatch = text.match(/^\s*search\s+(?:on\s+)?youtube(?:\s+for)?\s+(.+?)\s*$/i);
@@ -124,11 +135,10 @@ async function handleTools(text) {
     return 'Searching YouTube for ' + videoQuery + ', Boss.';
   }
 
-  // Wikipedia Lookup
+  // 6. Wikipedia Lookup
   const searchMatch = text.match(/^\s*(?:search|look up)\s+(?:for\s+)?(.+?)\s*$/i);
   if (searchMatch) {
     const query = searchMatch[1].trim();
-    if (!query) return 'Tell me what to search for.';
     try {
       const url =
         'https://en.wikipedia.org/w/api.php?action=query&list=search&srlimit=1&srsearch=' +
@@ -150,19 +160,26 @@ async function handleTools(text) {
     }
   }
 
-  // Built-in Agent Tools (time, weather, news, crypto)
-  if (/\b(?:current\s+)?time\b/i.test(text)) {
+  // 7. Time
+  if (/^\s*(?:what(?:'s| is)\s+the\s+)?(?:current\s+)?time\b/i.test(text)) {
     return 'Current time: ' + new Date().toLocaleTimeString();
   }
-  if (/\bweather\b/i.test(text)) {
+
+  // 8. Weather (Fixed: returns proper JSON instead of plain text)
+  if (/^\s*(?:what(?:'s| is)\s+the\s+)?weather\b/i.test(text)) {
     try {
-      const data = await fetchToolJson('https://wttr.in/?format=3');
-      return typeof data === 'string' ? data : 'Weather data fetched.';
+      const data = await fetchToolJson('https://wttr.in/?format=j1');
+      const current = data?.current_condition?.[0];
+      const area = data?.nearest_area?.[0]?.areaName?.[0]?.value || 'Your location';
+      if (!current) return 'Weather data unavailable.';
+      return `Weather in ${area}: ${current.temp_C}°C, ${current.weatherDesc?.[0]?.value || ''}`;
     } catch (e) {
       return 'Unable to fetch weather right now.';
     }
   }
-  if (/\b(?:bitcoin|btc|crypto)\b/i.test(text)) {
+
+  // 9. Crypto / Bitcoin
+  if (/^\s*(?:bitcoin|btc|crypto)(?:\s+price)?\s*$/i.test(text)) {
     try {
       const data = await fetchToolJson('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
       return `Bitcoin price: $${data?.bitcoin?.usd ?? 'Unavailable'}`;
@@ -170,17 +187,19 @@ async function handleTools(text) {
       return 'Unable to fetch Bitcoin price.';
     }
   }
-  if (/\bnews\b/i.test(text)) {
+
+  // 10. News
+  if (/^\s*(?:latest\s+|top\s+)?news\s*$/i.test(text)) {
     try {
       const data = await fetchToolJson('https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=3');
       const headlines = (data?.hits || []).map(h => h.title).filter(Boolean).join(' | ');
-      return headlines ? 'Top tech headlines: ' + headlines : 'No news found.';
+      return headlines ? 'Top headlines: ' + headlines : 'No news found.';
     } catch (e) {
       return 'Unable to fetch news.';
     }
   }
 
-  return null; // No tool matched; pass to Gemini
+  return null;
 }
 
 // ===== 3.5. AGENT MODE ENGINE =====
@@ -225,7 +244,6 @@ function parseAgentToolPlan(responseText) {
   ];
 }
 
-// Added missing fallback planner
 function fallbackAgentToolPlan(goal = '') {
   const g = String(goal).toLowerCase();
   const tools = [];
@@ -271,10 +289,8 @@ async function runAgent(goal) {
 }
 
 // ===== 4. GEMINI BRAIN =====
-// Stateless call used by Agent planner (avoids polluting or reading chat history)
-async function callGeminiRaw(promptText) {
-  if (!API_KEY) throw new Error('Gemini API key is missing.');
-  const contents = [{ role: 'user', parts: [{ text: promptText }] }];
+async function requestGemini(contents) {
+  if (!API_KEY) throw new Error('Gemini API key is missing. Type "reset key" to enter one.');
   let lastError;
 
   for (const model of MODELS) {
@@ -294,26 +310,67 @@ async function callGeminiRaw(promptText) {
   throw lastError || new Error('All Gemini models failed.');
 }
 
-// Conversational call with memory
+async function callGeminiRaw(promptText) {
+  return requestGemini([{ role: 'user', parts: [{ text: promptText }] }]);
+}
+
 async function callGemini(p) {
-  if (!API_KEY) throw new Error('Gemini API key is missing.');
   const contents = MEMORY.slice(-12).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
   contents.push({ role: 'user', parts: [{ text: p }] });
-  let lastError;
+  return requestGemini(contents);
+}
 
-  for (const m of MODELS) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(API_KEY)}`;
-      const data = await fetchToolJson(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents })
-      });
-      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (reply) return reply;
-    } catch (err) {
-      lastError = err;
+// ===== 5. MAIN MESSAGE ROUTER & UI LISTENERS =====
+async function processUserMessage(rawText) {
+  const text = String(rawText || '').trim();
+  if (!text) return;
+
+  add('YOU: ' + text, 'user');
+  MEMORY.push({ role: 'user', text });
+  saveMemory();
+
+  try {
+    let reply;
+    if (isAgentModeRequest(text)) {
+      reply = await runAgent(text);
+    } else {
+      const toolReply = await handleTools(text);
+      reply = toolReply !== null ? toolReply : await callGemini(text);
     }
+
+    add('J.A.R.V.I.S: ' + reply, 'ai');
+    MEMORY.push({ role: 'model', text: reply });
+    saveMemory();
+  } catch (err) {
+    console.error(err);
+    add('J.A.R.V.I.S Error: ' + (err.message || 'Something went wrong.'), 'ai');
   }
-  throw lastError || new Error('All Gemini models failed.');
+}
+
+if (input) {
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const val = input.value;
+      input.value = '';
+      processUserMessage(val);
+    }
+  });
+}
+
+if (sendBtn && input) {
+  sendBtn.addEventListener('click', () => {
+    const val = input.value;
+    input.value = '';
+    processUserMessage(val);
+  });
+}
+
+if (clearBtn) {
+  clearBtn.addEventListener('click', () => {
+    MEMORY = [];
+    localStorage.removeItem('jarvis_memory');
+    if (chat) chat.innerHTML = '';
+    add('J.A.R.V.I.S: Memory cleared, Boss.', 'ai');
+  });
 }
