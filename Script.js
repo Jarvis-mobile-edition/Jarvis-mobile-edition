@@ -115,7 +115,6 @@ function escapeHTML(str) {
 function renderMarkdown(rawText) {
   const codeBlocks = [];
 
-  // Extract fenced code blocks first so inner HTML isn't mangled
   let processed = rawText.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
     const idx = codeBlocks.length;
     codeBlocks.push({ lang: lang || "code", code: escapeHTML(code.trim()) });
@@ -124,7 +123,6 @@ function renderMarkdown(rawText) {
 
   processed = escapeHTML(processed);
 
-  // Inline code, bold, italic, and bullet lists
   processed = processed
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -132,7 +130,6 @@ function renderMarkdown(rawText) {
     .replace(/^\s*[-*]\s+(.+)$/gm, "• $1")
     .replace(/\n/g, "<br>");
 
-  // Restore code blocks with Copy buttons
   processed = processed.replace(/@@CODEBLOCK_(\d+)@@/g, (_, idx) => {
     const block = codeBlocks[Number(idx)];
     return `<pre><button type="button" class="copy-code-btn">COPY</button><code>${block.code}</code></pre>`;
@@ -181,7 +178,6 @@ function systemMessage(text) {
   createMessageElement("system", `SYSTEM // ${text}`);
 }
 
-// Event delegation for code block Copy buttons
 dom.chat?.addEventListener("click", async (e) => {
   if (e.target.classList.contains("copy-code-btn")) {
     const codeEl = e.target.parentElement?.querySelector("code");
@@ -231,7 +227,6 @@ function speakText(text) {
 
   window.speechSynthesis.cancel();
 
-  // Strip markdown symbols for cleaner speech
   const cleanText = text
     .replace(/```[\s\S]*?```/g, "Code block displayed on console.")
     .replace(/[*_`#]/g, "")
@@ -646,5 +641,12 @@ async function runWikipediaSearch(query) {
     systemMessage(err.message);
   } finally {
     dom.webBtn.disabled = false;
-           }
-       
+  }
+}
+
+dom.webBtn?.addEventListener("click", () => runWikipediaSearch(dom.webInput.value));
+dom.webInput?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") runWikipediaSearch(dom.webInput.value);
+});
+
+// =========================================
