@@ -1,185 +1,57 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#000b10">
-  <meta name="description" content="J.A.R.V.I.S Mobile Edition personal AI assistant">
-
-  <title>J.A.R.V.I.S · Tactical AI Console</title>
-
-  <link rel="stylesheet" href="./Style.css?v=6">
-
-  <script>
-    window.addEventListener("error", (event) => {
-      const status = document.getElementById("system-state");
-      if (status && event.message) {
-        status.textContent = "SYSTEM FAULT: " + event.message.toUpperCase();
-        document.body.dataset.state = "error";
-      }
-    });
-  </script>
-
-  <script src="./Script.js?v=6" defer></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>J.A.R.V.I.S</title>
+  <link rel="stylesheet" href="style.css">
 </head>
+<body>
 
-<body data-state="ready">
-
-  <header class="site-header">
+  <header>
     <h1>J.A.R.V.I.S</h1>
-    <p>JUST A RATHER VERY INTELLIGENT SYSTEM</p>
+    <p>PERSONAL AI ASSISTANT</p>
   </header>
 
-  <main>
+  <div class="core">
+    <div class="ring r1"></div>
+    <div class="ring r2"></div>
+    <div class="center"></div>
+  </div>
 
-    <!-- ARC REACTOR CORE -->
-    <section class="reactor" aria-label="System status">
-      <div class="core" id="arc-core" aria-hidden="true">
-        <div class="ring r1"></div>
-        <div class="ring r2"></div>
-        <div class="ring r3"></div>
-        <div class="center"></div>
-      </div>
+  <p class="core-text">SYSTEM READY</p>
 
-      <p class="core-text" id="system-state" role="status" aria-live="polite">
-        SYSTEM READY
-      </p>
-    </section>
+  <div class="status">
+    <h2>SYSTEM DIAGNOSTICS</h2>
+    <div class="row">
+      <span>AI ENGINE</span>
+      <b class="on">• OPERATIONAL</b>
+    </div>
+    <div class="row">
+      <span>CONNECTION</span>
+      <b class="on">• ONLINE</b>
+    </div>
+    <div class="row">
+      <span>VOICE INTERFACE</span>
+      <b class="on">• READY</b>
+    </div>
+    <div class="row">
+      <span>LONG-TERM MEMORY</span>
+      <b class="on">• ACTIVE</b>
+    </div>
+  </div>
 
-    <!-- SYSTEM DIAGNOSTICS -->
-    <section class="panel status" aria-labelledby="diagnostics-title">
-      <div class="panel-header">
-        <h2 id="diagnostics-title">SYSTEM DIAGNOSTICS</h2>
-        <button id="tts-toggle-btn" class="badge-btn" type="button" aria-pressed="true" title="Toggle J.A.R.V.I.S. Voice Output">
-          🔊 VOICE: ON
-        </button>
-      </div>
+  <div class="chat" id="chat"></div>
 
-      <div class="diagnostics-grid">
-        <div class="row">
-          <span>AI ENGINE</span>
-          <b id="ai-status">• WAITING FOR KEY</b>
-        </div>
-        <div class="row">
-          <span>MODEL CORE</span>
-          <b id="model-status" class="on">• GEMINI-2.5-FLASH</b>
-        </div>
-        <div class="row">
-          <span>VOICE INPUT</span>
-          <b id="voice-status">• CHECKING</b>
-        </div>
-        <div class="row">
-          <span>MEMORY BANK</span>
-          <b id="memory-status">• 0 ENTRIES</b>
-        </div>
-      </div>
-    </section>
+  <div class="input-area">
+    <input type="text" id="msg" placeholder="Enter a command for J.A.R.V.I.S...">
+    <button id="send">EXECUTE</button>
+    <button id="mic-btn" aria-label="Activate voice input">🎙️</button>
+    <button id="cam-btn" aria-label="Analyze image">📷</button>
+    <button id="clear-btn">CLEAR MEMORY</button>
+    <input id="img-input" type="file" accept="image/*" style="display:none">
+  </div>
 
-    <!-- INTERNET SEARCH -->
-    <section class="panel search-panel" aria-labelledby="search-title">
-      <h2 id="search-title">KNOWLEDGE DATABASE</h2>
-
-      <div class="search-box">
-        <input
-          id="web-search-input"
-          type="search"
-          placeholder="Query Wikipedia archives..."
-          autocomplete="off">
-        <button id="web-search-btn" type="button">SEARCH</button>
-      </div>
-
-      <p id="web-search-status" role="status">ARCHIVES STANDING BY</p>
-
-      <div id="web-results" class="web-results" aria-live="polite"></div>
-    </section>
-
-    <!-- ASSISTANT CONSOLE -->
-    <section class="panel chat-panel" aria-labelledby="console-title">
-      <div class="chat-heading">
-        <h2 id="console-title">TACTICAL CONSOLE</h2>
-        <div class="console-actions">
-          <button id="export-btn" class="mini-btn" type="button" title="Download chat log">💾 EXPORT</button>
-          <span class="live-pill">● LIVE</span>
-        </div>
-      </div>
-
-      <div
-        class="chat"
-        id="chat"
-        aria-live="polite"
-        aria-label="Chat messages">
-      </div>
-
-      <!-- QUICK COMMAND CHIPS -->
-      <div class="quick-chips" aria-label="Quick commands">
-        <button type="button" class="chip" data-cmd="Weather">☁️ Weather</button>
-        <button type="button" class="chip" data-cmd="Latest news">📰 Headlines</button>
-        <button type="button" class="chip" data-cmd="Current time">🕒 Time</button>
-        <button type="button" class="chip" data-cmd="Run a full system diagnostic report.">⚡ Diagnostics</button>
-      </div>
-
-      <!-- ASSISTANT INPUT -->
-      <div class="input-area">
-        <label class="sr-only" for="msg">Message J.A.R.V.I.S.</label>
-
-        <div class="input-wrapper">
-          <textarea
-            id="msg"
-            rows="1"
-            placeholder="Issue a directive to J.A.R.V.I.S..."
-            autocomplete="off"></textarea>
-          <button id="send" type="button">EXECUTE</button>
-        </div>
-
-        <div class="controls">
-          <button id="mic-btn" type="button">🎤 VOICE</button>
-          <button id="cam-btn" type="button">📷 VISION</button>
-          <button id="set-api-key-btn" type="button">🔑 CONFIG</button>
-          <button id="clear-btn" type="button">🗑️ PURGE</button>
-        </div>
-
-        <input
-          id="img-input"
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          hidden>
-
-        <p class="privacy-note">
-          Local encrypted browser storage active. Avoid transmitting sensitive credentials.
-        </p>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- CUSTOM STARK HUD CONFIG MODAL -->
-  <dialog id="config-modal" class="hud-modal" aria-labelledby="modal-title">
-    <form method="dialog" class="modal-content">
-      <h3 id="modal-title">SYSTEM CONFIGURATION</h3>
-
-      <label class="modal-label" for="api-key-input">GEMINI API KEY</label>
-      <input
-        id="api-key-input"
-        type="password"
-        placeholder="AIzaSy..."
-        autocomplete="off">
-
-      <label class="modal-label" for="model-select">NEURAL ENGINE MODEL</label>
-      <select id="model-select">
-        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast & Tactical)</option>
-        <option value="gemini-2.5-pro">Gemini 2.5 Pro (Deep Reasoning)</option>
-      </select>
-
-      <div class="modal-actions">
-        <button id="cancel-modal-btn" type="button">CANCEL</button>
-        <button id="save-config-btn" type="submit">INITIALIZE</button>
-      </div>
-    </form>
-  </dialog>
-
-  <footer>
-    J.A.R.V.I.S MOBILE EDITION · STARK INDUSTRIES HUD v6.0
-  </footer>
-
+  <script src="script.js"></script>
 </body>
 </html>
