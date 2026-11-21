@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -5,74 +6,197 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#000b10">
   <meta name="description" content="J.A.R.V.I.S Mobile Edition personal AI assistant">
+
   <title>J.A.R.V.I.S Mobile Edition</title>
-  <link rel="stylesheet" href="./Style.css">
-  <script src="./Script.js?v=4" defer
-onload="document.getElementById('system-state').textContent='JAVASCRIPT CONNECTED';"
-onerror="document.getElementById('system-state').textContent='JAVASCRIPT FAILED TO LOAD';">
+
+  <link rel="stylesheet" href="./Style.css?v=5">
+
+  <script>
+    window.addEventListener("error", function(event) {
+      const status = document.getElementById("system-state");
+
+      if (status && event.message) {
+        status.textContent = "JAVASCRIPT ERROR: " + event.message;
+      }
+    });
+
+    window.addEventListener("unhandledrejection", function(event) {
+      const status = document.getElementById("system-state");
+
+      if (status) {
+        status.textContent = "PROMISE ERROR";
+      }
+    });
+  </script>
+
+  <script
+    src="./Script.js?v=5"
+    defer
+    onload="console.log('JARVIS Script.js loaded successfully');"
+    onerror="document.getElementById('system-state').textContent='JAVASCRIPT FILE NOT FOUND';">
   </script>
 </head>
+
 <body>
+
   <header class="site-header">
     <h1>J.A.R.V.I.S</h1>
     <p>PERSONAL AI ASSISTANT</p>
   </header>
 
   <main>
+
+    <!-- REACTOR -->
     <section class="reactor" aria-label="System status">
+
       <div class="core" aria-hidden="true">
         <div class="ring r1"></div>
         <div class="ring r2"></div>
         <div class="ring r3"></div>
         <div class="center"></div>
       </div>
-      <p class="core-text" id="system-state">SYSTEM READY</p>
+
+      <p class="core-text" id="system-state">
+        SYSTEM READY
+      </p>
+
     </section>
 
+    <!-- SYSTEM DIAGNOSTICS -->
     <section class="status" aria-labelledby="diagnostics-title">
+
       <h2 id="diagnostics-title">SYSTEM DIAGNOSTICS</h2>
-      <div class="row"><span>AI ENGINE</span><b id="ai-status">• WAITING FOR KEY</b></div>
-      <div class="row"><span>WEB SEARCH</span><b id="web-status">• READY</b></div>
-      <div class="row"><span>VOICE INTERFACE</span><b id="voice-status">• CHECKING</b></div>
-      <div class="row"><span>MEMORY</span><b id="memory-status">• ACTIVE</b></div>
+
+      <div class="row">
+        <span>AI ENGINE</span>
+        <b id="ai-status">• WAITING FOR KEY</b>
+      </div>
+
+      <div class="row">
+        <span>WEB SEARCH</span>
+        <b id="web-status">• READY</b>
+      </div>
+
+      <div class="row">
+        <span>VOICE INTERFACE</span>
+        <b id="voice-status">• CHECKING</b>
+      </div>
+
+      <div class="row">
+        <span>MEMORY</span>
+        <b id="memory-status">• ACTIVE</b>
+      </div>
+
     </section>
 
+    <!-- INTERNET SEARCH -->
     <section class="search-panel" aria-labelledby="search-title">
+
       <h2 id="search-title">INTERNET SEARCH</h2>
+
       <div class="search-box">
-        <input id="web-search-input" type="search" placeholder="Search Wikipedia..." autocomplete="off">
-        <button id="web-search-btn" type="button">SEARCH</button>
+
+        <input
+          id="web-search-input"
+          type="search"
+          placeholder="Search Wikipedia..."
+          autocomplete="off">
+
+        <button id="web-search-btn" type="button">
+          SEARCH
+        </button>
+
       </div>
-      <p id="web-search-status" role="status">SEARCH RESULTS WILL APPEAR BELOW</p>
-      <div id="web-results" class="web-results" aria-live="polite"></div>
+
+      <p id="web-search-status" role="status">
+        SEARCH RESULTS WILL APPEAR BELOW
+      </p>
+
+      <div
+        id="web-results"
+        class="web-results"
+        aria-live="polite">
+      </div>
+
     </section>
 
+    <!-- ASSISTANT CONSOLE -->
     <section class="chat-panel" aria-labelledby="console-title">
+
       <div class="chat-heading">
-        <h2 id="console-title">ASSISTANT CONSOLE</h2>
+
+        <h2 id="console-title">
+          ASSISTANT CONSOLE
+        </h2>
+
         <span>LIVE</span>
+
       </div>
-      <div class="chat" id="chat" aria-live="polite" aria-label="Chat messages"></div>
+
+      <div
+        class="chat"
+        id="chat"
+        aria-live="polite"
+        aria-label="Chat messages">
+      </div>
+
     </section>
 
+    <!-- ASSISTANT INPUT -->
     <section class="input-area" aria-label="Assistant controls">
-      <label class="sr-only" for="msg">Message J.A.R.V.I.S.</label>
-      <input id="msg" type="text" placeholder="Enter a command for J.A.R.V.I.S..." autocomplete="off">
+
+      <label class="sr-only" for="msg">
+        Message J.A.R.V.I.S.
+      </label>
+
+      <input
+        id="msg"
+        type="text"
+        placeholder="Enter a command for J.A.R.V.I.S..."
+        autocomplete="off">
+
       <div class="controls">
-        <button id="send" type="button">EXECUTE</button>
-        <button id="mic-btn" type="button">🎤 VOICE</button>
-        <button id="cam-btn" type="button">📷 IMAGE</button>
-        <button id="clear-btn" type="button">CLEAR CHAT</button>
+
+        <button id="send" type="button">
+          EXECUTE
+        </button>
+
+        <button id="mic-btn" type="button">
+          🎤 VOICE
+        </button>
+
+        <button id="cam-btn" type="button">
+          📷 IMAGE
+        </button>
+
+        <button id="clear-btn" type="button">
+          CLEAR CHAT
+        </button>
+
         <button id="set-api-key-btn" type="button">
-  SET API KEY
-</button>
-        
+          SET API KEY
+        </button>
+
       </div>
-      <input id="img-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
-      <p class="privacy-note">Your chat is stored in this browser. Do not enter private or sensitive information.</p>
+
+      <input
+        id="img-input"
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        hidden>
+
+      <p class="privacy-note">
+        Your chat is stored in this browser.
+        Do not enter private or sensitive information.
+      </p>
+
     </section>
+
   </main>
 
-  <footer>J.A.R.V.I.S MOBILE EDITION · RUNNING IN YOUR BROWSER</footer>
+  <footer>
+    J.A.R.V.I.S MOBILE EDITION · RUNNING IN YOUR BROWSER
+  </footer>
+
 </body>
 </html>
