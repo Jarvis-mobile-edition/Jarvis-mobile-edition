@@ -236,7 +236,6 @@ async function requestGemini(contents) {
                 contents: contents,
 
                 generationConfig: {
-                    temperature: 0.7,
                     maxOutputTokens: 2048
                 }
             }),
