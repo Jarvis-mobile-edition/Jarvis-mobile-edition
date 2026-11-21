@@ -12,7 +12,8 @@ function requestApiKey(force = false) {
 }
 requestApiKey();
 
-const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
+// Use only valid Gemini API model IDs
+const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
 const SYSTEM_PROMPT = {
   parts: [{
@@ -49,8 +50,8 @@ function setStatus(text, isOnline = true) {
 
 const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
-// ===== 3. UNIFIED GEMINI FETCH WITH RETRY & FALLBACK =====
-async function fetchGemini(contents, retries = 2) {
+// ===== 3. UNIFIED GEMINI FETCH WITH TIMEOUT, RETRY & FALLBACK =====
+async function fetchGemini(contents, retries = 1) {
   if (!API_KEY) {
     requestApiKey(true);
     if (!API_KEY) throw new Error("API Key required. Tap 🔑 to enter your key.");
@@ -60,47 +61,66 @@ async function fetchGemini(contents, retries = 2) {
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     for (const m of MODELS) {
+      // 15-second timeout so mobile browsers never hang forever
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
       try {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${API_KEY}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             systemInstruction: SYSTEM_PROMPT,
             contents: contents
           })
         });
+        clearTimeout(timeoutId);
+
         const data = await res.json();
 
-        if (data.error) {
-          lastErr = new Error(data.error.message);
-          if (/high demand|temporar|quota|rate|unavailable|overloaded/i.test(data.error.message)) {
-            continue;
+        if (!res.ok || data.error) {
+          const errMsg = data.error?.message || `HTTP ${res.status}`;
+          lastErr = new Error(errMsg);
+
+          // Stop immediately on auth or bad request errors
+          if (res.status === 400 || res.status === 401 || res.status === 403 || /API key/i.test(errMsg)) {
+            lastErr.fatal = true;
+            throw lastErr;
           }
-          throw lastErr;
+          // Otherwise try next model
+          continue;
         }
 
-        if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) {
           throw new Error("Empty response from neural core.");
         }
 
-        return data.candidates[0].content.parts[0].text;
+        return text;
       } catch (e) {
-        lastErr = e;
-        if (/API key not valid/i.test(e.message)) throw e;
+        clearTimeout(timeoutId);
+        if (e.name === 'AbortError') {
+          lastErr = new Error("Connection timed out (15s). Check your network.");
+        } else {
+          lastErr = e;
+        }
+        if (lastErr.fatal) throw lastErr;
       }
     }
+
     if (attempt < retries) {
       setStatus(`RETRYING (${attempt + 1}/${retries})...`, true);
-      await sleep(1500 * (attempt + 1));
+      await sleep(1000 * (attempt + 1));
     }
   }
-  throw lastErr;
+  throw lastErr || new Error("Failed to reach neural core.");
 }
 
 // ===== 4. TEXT & MEMORY ENGINE =====
 async function askGemini(p) {
   setStatus('PROCESSING...', true);
-  add('J.A.R.V.I.S: Thinking...', 'ai');
+  const botBubble = add('J.A.R.V.I.S: Thinking...', 'ai');
 
   const contents = MEMORY.slice(-12).map(m => ({
     role: m.role,
@@ -114,12 +134,12 @@ async function askGemini(p) {
     MEMORY.push({ role: 'model', text: reply });
     saveMemory();
 
-    chat.lastChild.innerText = 'J.A.R.V.I.S: ' + reply;
+    botBubble.innerText = 'J.A.R.V.I.S: ' + reply;
     chat.scrollTop = chat.scrollHeight;
     setStatus('SYSTEM READY', true);
     speak(reply);
   } catch (e) {
-    chat.lastChild.innerText = 'J.A.R.V.I.S: ERROR - ' + e.message;
+    botBubble.innerText = 'J.A.R.V.I.S: ERROR - ' + e.message;
     chat.scrollTop = chat.scrollHeight;
     setStatus('CORE OFFLINE', false);
   }
@@ -146,7 +166,7 @@ if (camBtn && imgInput) {
 
 async function askVision(base64, mime, q) {
   setStatus('ANALYZING VISUALS...', true);
-  add('J.A.R.V.I.S: Analyzing image...', 'ai');
+  const botBubble = add('J.A.R.V.I.S: Analyzing image...', 'ai');
 
   const contents = [{
     parts: [
@@ -157,12 +177,12 @@ async function askVision(base64, mime, q) {
 
   try {
     const reply = await fetchGemini(contents);
-    chat.lastChild.innerText = 'J.A.R.V.I.S: ' + reply;
+    botBubble.innerText = 'J.A.R.V.I.S: ' + reply;
     chat.scrollTop = chat.scrollHeight;
     setStatus('SYSTEM READY', true);
     speak(reply);
   } catch (e) {
-    chat.lastChild.innerText = 'J.A.R.V.I.S: ERROR - ' + e.message;
+    botBubble.innerText = 'J.A.R.V.I.S: ERROR - ' + e.message;
     chat.scrollTop = chat.scrollHeight;
     setStatus('CORE OFFLINE', false);
   }
@@ -183,7 +203,7 @@ if (SR && micBtn) {
     setStatus('SYSTEM READY', true);
   };
   micBtn.onclick = () => {
-    speechSynthesis.cancel();
+    if (window.speechSynthesis) speechSynthesis.cancel();
     rec.start();
     micBtn.innerText = '...';
     setStatus('LISTENING...', true);
@@ -195,12 +215,17 @@ if (SR && micBtn) {
 
 let voices = [];
 function loadVoices() {
-  voices = speechSynthesis.getVoices();
+  if (window.speechSynthesis) {
+    voices = speechSynthesis.getVoices();
+  }
 }
 loadVoices();
-speechSynthesis.onvoiceschanged = loadVoices;
+if (window.speechSynthesis) {
+  speechSynthesis.onvoiceschanged = loadVoices;
+}
 
 function speak(t) {
+  if (!window.speechSynthesis) return;
   speechSynthesis.cancel();
   const cleanText = t.replace(/[*#_`]/g, '');
   const u = new SpeechSynthesisUtterance(cleanText);
@@ -219,17 +244,19 @@ function handleSend() {
   askGemini(t);
 }
 
-sendBtn.onclick = handleSend;
-input.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') handleSend();
-});
+if (sendBtn) sendBtn.onclick = handleSend;
+if (input) {
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleSend();
+  });
+}
 
 if (clearBtn) {
   clearBtn.onclick = () => {
     MEMORY = [];
     saveMemory();
     chat.innerHTML = '';
-    speechSynthesis.cancel();
+    if (window.speechSynthesis) speechSynthesis.cancel();
     setStatus('SYSTEM READY', true);
     add('SYSTEM: Memory cleared.', 'ai');
   };
@@ -249,4 +276,5 @@ function add(t, w) {
   d.innerText = t;
   chat.appendChild(d);
   chat.scrollTop = chat.scrollHeight;
+  return d;
 }
