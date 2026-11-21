@@ -108,7 +108,7 @@ async function geminiRequest(contents) {
     },
     body: JSON.stringify({
       contents,
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1200 }
+      generationConfig: { maxOutputTokens: 1200 }
     })
   });
   const data = await response.json().catch(() => ({}));
@@ -358,4 +358,4 @@ if (apiKey) {
   $("ai-status").textContent = "• WAITING FOR KEY";
   $("ai-status").className = "warn";
 }
-if (!chat.children.length) addMessage("System online. Set your Gemini API key, then send a message.", "system");
+if (!chat.children.length) addMessage("System online · Script v3 · Model: gemini-3.8-flash. Set your Gemini API key, then send a message.", "system");
