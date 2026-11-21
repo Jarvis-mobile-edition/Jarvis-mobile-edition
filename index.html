@@ -1,136 +1,106 @@
-
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#000b10">
   <meta name="description" content="J.A.R.V.I.S Mobile Edition personal AI assistant">
 
-  <title>J.A.R.V.I.S Mobile Edition</title>
+  <title>J.A.R.V.I.S · Tactical AI Console</title>
 
-  <link rel="stylesheet" href="./Style.css?v=5">
+  <link rel="stylesheet" href="./Style.css?v=6">
 
   <script>
-    window.addEventListener("error", function(event) {
+    window.addEventListener("error", (event) => {
       const status = document.getElementById("system-state");
-
       if (status && event.message) {
-        status.textContent = "JAVASCRIPT ERROR: " + event.message;
-      }
-    });
-
-    window.addEventListener("unhandledrejection", function(event) {
-      const status = document.getElementById("system-state");
-
-      if (status) {
-        status.textContent = "PROMISE ERROR";
+        status.textContent = "SYSTEM FAULT: " + event.message.toUpperCase();
+        document.body.dataset.state = "error";
       }
     });
   </script>
 
-  <script
-    src="./Script.js?v=5"
-    defer
-    onload="console.log('JARVIS Script.js loaded successfully');"
-    onerror="document.getElementById('system-state').textContent='JAVASCRIPT FILE NOT FOUND';">
-  </script>
+  <script src="./Script.js?v=6" defer></script>
 </head>
 
-<body>
+<body data-state="ready">
 
   <header class="site-header">
     <h1>J.A.R.V.I.S</h1>
-    <p>PERSONAL AI ASSISTANT</p>
+    <p>JUST A RATHER VERY INTELLIGENT SYSTEM</p>
   </header>
 
   <main>
 
-    <!-- REACTOR -->
+    <!-- ARC REACTOR CORE -->
     <section class="reactor" aria-label="System status">
-
-      <div class="core" aria-hidden="true">
+      <div class="core" id="arc-core" aria-hidden="true">
         <div class="ring r1"></div>
         <div class="ring r2"></div>
         <div class="ring r3"></div>
         <div class="center"></div>
       </div>
 
-      <p class="core-text" id="system-state">
+      <p class="core-text" id="system-state" role="status" aria-live="polite">
         SYSTEM READY
       </p>
-
     </section>
 
     <!-- SYSTEM DIAGNOSTICS -->
-    <section class="status" aria-labelledby="diagnostics-title">
-
-      <h2 id="diagnostics-title">SYSTEM DIAGNOSTICS</h2>
-
-      <div class="row">
-        <span>AI ENGINE</span>
-        <b id="ai-status">• WAITING FOR KEY</b>
+    <section class="panel status" aria-labelledby="diagnostics-title">
+      <div class="panel-header">
+        <h2 id="diagnostics-title">SYSTEM DIAGNOSTICS</h2>
+        <button id="tts-toggle-btn" class="badge-btn" type="button" aria-pressed="true" title="Toggle J.A.R.V.I.S. Voice Output">
+          🔊 VOICE: ON
+        </button>
       </div>
 
-      <div class="row">
-        <span>WEB SEARCH</span>
-        <b id="web-status">• READY</b>
+      <div class="diagnostics-grid">
+        <div class="row">
+          <span>AI ENGINE</span>
+          <b id="ai-status">• WAITING FOR KEY</b>
+        </div>
+        <div class="row">
+          <span>MODEL CORE</span>
+          <b id="model-status" class="on">• GEMINI-2.5-FLASH</b>
+        </div>
+        <div class="row">
+          <span>VOICE INPUT</span>
+          <b id="voice-status">• CHECKING</b>
+        </div>
+        <div class="row">
+          <span>MEMORY BANK</span>
+          <b id="memory-status">• 0 ENTRIES</b>
+        </div>
       </div>
-
-      <div class="row">
-        <span>VOICE INTERFACE</span>
-        <b id="voice-status">• CHECKING</b>
-      </div>
-
-      <div class="row">
-        <span>MEMORY</span>
-        <b id="memory-status">• ACTIVE</b>
-      </div>
-
     </section>
 
     <!-- INTERNET SEARCH -->
-    <section class="search-panel" aria-labelledby="search-title">
-
-      <h2 id="search-title">INTERNET SEARCH</h2>
+    <section class="panel search-panel" aria-labelledby="search-title">
+      <h2 id="search-title">KNOWLEDGE DATABASE</h2>
 
       <div class="search-box">
-
         <input
           id="web-search-input"
           type="search"
-          placeholder="Search Wikipedia..."
+          placeholder="Query Wikipedia archives..."
           autocomplete="off">
-
-        <button id="web-search-btn" type="button">
-          SEARCH
-        </button>
-
+        <button id="web-search-btn" type="button">SEARCH</button>
       </div>
 
-      <p id="web-search-status" role="status">
-        SEARCH RESULTS WILL APPEAR BELOW
-      </p>
+      <p id="web-search-status" role="status">ARCHIVES STANDING BY</p>
 
-      <div
-        id="web-results"
-        class="web-results"
-        aria-live="polite">
-      </div>
-
+      <div id="web-results" class="web-results" aria-live="polite"></div>
     </section>
 
     <!-- ASSISTANT CONSOLE -->
-    <section class="chat-panel" aria-labelledby="console-title">
-
+    <section class="panel chat-panel" aria-labelledby="console-title">
       <div class="chat-heading">
-
-        <h2 id="console-title">
-          ASSISTANT CONSOLE
-        </h2>
-
-        <span>LIVE</span>
-
+        <h2 id="console-title">TACTICAL CONSOLE</h2>
+        <div class="console-actions">
+          <button id="export-btn" class="mini-btn" type="button" title="Download chat log">💾 EXPORT</button>
+          <span class="live-pill">● LIVE</span>
+        </div>
       </div>
 
       <div
@@ -140,62 +110,75 @@
         aria-label="Chat messages">
       </div>
 
-    </section>
-
-    <!-- ASSISTANT INPUT -->
-    <section class="input-area" aria-label="Assistant controls">
-
-      <label class="sr-only" for="msg">
-        Message J.A.R.V.I.S.
-      </label>
-
-      <input
-        id="msg"
-        type="text"
-        placeholder="Enter a command for J.A.R.V.I.S..."
-        autocomplete="off">
-
-      <div class="controls">
-
-        <button id="send" type="button">
-          EXECUTE
-        </button>
-
-        <button id="mic-btn" type="button">
-          🎤 VOICE
-        </button>
-
-        <button id="cam-btn" type="button">
-          📷 IMAGE
-        </button>
-
-        <button id="clear-btn" type="button">
-          CLEAR CHAT
-        </button>
-
-        <button id="set-api-key-btn" type="button">
-          SET API KEY
-        </button>
-
+      <!-- QUICK COMMAND CHIPS -->
+      <div class="quick-chips" aria-label="Quick commands">
+        <button type="button" class="chip" data-cmd="Weather">☁️ Weather</button>
+        <button type="button" class="chip" data-cmd="Latest news">📰 Headlines</button>
+        <button type="button" class="chip" data-cmd="Current time">🕒 Time</button>
+        <button type="button" class="chip" data-cmd="Run a full system diagnostic report.">⚡ Diagnostics</button>
       </div>
 
-      <input
-        id="img-input"
-        type="file"
-        accept="image/png,image/jpeg,image/webp"
-        hidden>
+      <!-- ASSISTANT INPUT -->
+      <div class="input-area">
+        <label class="sr-only" for="msg">Message J.A.R.V.I.S.</label>
 
-      <p class="privacy-note">
-        Your chat is stored in this browser.
-        Do not enter private or sensitive information.
-      </p>
+        <div class="input-wrapper">
+          <textarea
+            id="msg"
+            rows="1"
+            placeholder="Issue a directive to J.A.R.V.I.S..."
+            autocomplete="off"></textarea>
+          <button id="send" type="button">EXECUTE</button>
+        </div>
 
+        <div class="controls">
+          <button id="mic-btn" type="button">🎤 VOICE</button>
+          <button id="cam-btn" type="button">📷 VISION</button>
+          <button id="set-api-key-btn" type="button">🔑 CONFIG</button>
+          <button id="clear-btn" type="button">🗑️ PURGE</button>
+        </div>
+
+        <input
+          id="img-input"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          hidden>
+
+        <p class="privacy-note">
+          Local encrypted browser storage active. Avoid transmitting sensitive credentials.
+        </p>
+      </div>
     </section>
 
   </main>
 
+  <!-- CUSTOM STARK HUD CONFIG MODAL -->
+  <dialog id="config-modal" class="hud-modal" aria-labelledby="modal-title">
+    <form method="dialog" class="modal-content">
+      <h3 id="modal-title">SYSTEM CONFIGURATION</h3>
+
+      <label class="modal-label" for="api-key-input">GEMINI API KEY</label>
+      <input
+        id="api-key-input"
+        type="password"
+        placeholder="AIzaSy..."
+        autocomplete="off">
+
+      <label class="modal-label" for="model-select">NEURAL ENGINE MODEL</label>
+      <select id="model-select">
+        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast & Tactical)</option>
+        <option value="gemini-2.5-pro">Gemini 2.5 Pro (Deep Reasoning)</option>
+      </select>
+
+      <div class="modal-actions">
+        <button id="cancel-modal-btn" type="button">CANCEL</button>
+        <button id="save-config-btn" type="submit">INITIALIZE</button>
+      </div>
+    </form>
+  </dialog>
+
   <footer>
-    J.A.R.V.I.S MOBILE EDITION · RUNNING IN YOUR BROWSER
+    J.A.R.V.I.S MOBILE EDITION · STARK INDUSTRIES HUD v6.0
   </footer>
 
 </body>
