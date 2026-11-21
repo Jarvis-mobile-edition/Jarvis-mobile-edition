@@ -1,7 +1,7 @@
 // J.A.R.V.I.S MOBILE EDITION
 // Browser-only demo. A key entered here is visible to this browser and its owner.
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.8-flash";
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
 const MEMORY_KEY = "jarvis_memory";
 const KEY_STORAGE = "jarvis_key_session";
