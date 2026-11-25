@@ -13,7 +13,10 @@ function requestApiKey(force = false) {
 requestApiKey();
 
 // Use only valid Gemini API model IDs
-const MODELS = ["gemini-3.5-flash", "gemini-3.5-flash-lite"];
+const MODELS = [
+  "gemini-3.8-flash",
+  "gemini-3.5-flash-lite"
+];
 
 const SYSTEM_PROMPT = {
   parts: [{
